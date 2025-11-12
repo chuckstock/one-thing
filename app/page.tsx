@@ -1,234 +1,271 @@
 "use client";
 
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import Link from "next/link";
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { useMemo, useEffect, useState } from "react";
+import type { Id } from "../convex/_generated/dataModel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+
+const POMODORO_DURATION = 25 * 60 * 1000; // 25 minutes in milliseconds
+const USER_ID_KEY = "pomodoro_user_id";
 
 export default function Home() {
-  return (
-    <>
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md p-4 border-b border-slate-200 dark:border-slate-700 flex flex-row justify-between items-center shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-3">
-            <Image src="/convex.svg" alt="Convex Logo" width={32} height={32} />
-            <div className="w-px h-8 bg-slate-300 dark:bg-slate-600"></div>
-            <Image
-              src="/nextjs-icon-light-background.svg"
-              alt="Next.js Logo"
-              width={32}
-              height={32}
-              className="dark:hidden"
-            />
-            <Image
-              src="/nextjs-icon-dark-background.svg"
-              alt="Next.js Logo"
-              width={32}
-              height={32}
-              className="hidden dark:block"
-            />
-          </div>
-          <h1 className="font-semibold text-slate-800 dark:text-slate-200">
-            Convex + Next.js + Convex Auth
-          </h1>
-        </div>
-        <SignOutButton />
-      </header>
-      <main className="p-8 flex flex-col gap-8">
-        <Content />
-      </main>
-    </>
-  );
-}
-
-function SignOutButton() {
-  const { isAuthenticated } = useConvexAuth();
-  const { signOut } = useAuthActions();
   const router = useRouter();
-  return (
-    <>
-      {isAuthenticated && (
-        <button
-          className="bg-slate-600 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
-          onClick={() =>
-            void signOut().then(() => {
-              router.push("/signin");
-            })
-          }
-        >
-          Sign out
-        </button>
-      )}
-    </>
-  );
-}
+  const [userId, setUserId] = useState<Id<"users"> | null>(null);
 
-function Content() {
-  const { viewer, numbers } =
-    useQuery(api.myFunctions.listNumbers, {
-      count: 10,
-    }) ?? {};
-  const addNumber = useMutation(api.myFunctions.addNumber);
+  useEffect(() => {
+    const storedUserId = localStorage.getItem(USER_ID_KEY);
+    if (!storedUserId) {
+      router.push("/signin");
+      return;
+    }
+    setUserId(storedUserId as Id<"users">);
+  }, [router]);
 
-  if (viewer === undefined || numbers === undefined) {
-    return (
-      <div className="mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-          <div
-            className="w-2 h-2 bg-slate-500 rounded-full animate-bounce"
-            style={{ animationDelay: "0.1s" }}
-          ></div>
-          <div
-            className="w-2 h-2 bg-slate-600 rounded-full animate-bounce"
-            style={{ animationDelay: "0.2s" }}
-          ></div>
-          <p className="ml-2 text-slate-600 dark:text-slate-400">Loading...</p>
-        </div>
-      </div>
-    );
+  if (!userId) {
+    return null;
   }
 
   return (
-    <div className="flex flex-col gap-4 max-w-lg mx-auto">
-      <div>
-        <h2 className="font-bold text-xl text-slate-800 dark:text-slate-200">
-          Welcome {viewer ?? "Anonymous"}!
-        </h2>
-        <p className="text-slate-600 dark:text-slate-400 mt-2">
-          You are signed into a demo application using Convex Auth.
-        </p>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
-          This app can generate random numbers and store them in your Convex
-          database.
-        </p>
-      </div>
-
-      <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
-
-      <div className="flex flex-col gap-4">
-        <h2 className="font-semibold text-xl text-slate-800 dark:text-slate-200">
-          Number generator
-        </h2>
-        <p className="text-slate-600 dark:text-slate-400 text-sm">
-          Click the button below to generate a new number. The data is persisted
-          in the Convex cloud database - open this page in another window and
-          see the data sync automatically!
-        </p>
-        <button
-          className="bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white text-sm font-medium px-6 py-3 rounded-lg cursor-pointer transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-          onClick={() => {
-            void addNumber({ value: Math.floor(Math.random() * 10) });
-          }}
-        >
-          + Generate random number
-        </button>
-        <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl p-4 shadow-sm">
-          <p className="font-semibold text-slate-800 dark:text-slate-200 mb-2">
-            Newest Numbers
-          </p>
-          <p className="text-slate-700 dark:text-slate-300 font-mono text-lg">
-            {numbers?.length === 0
-              ? "Click the button to generate a number!"
-              : (numbers?.join(", ") ?? "...")}
-          </p>
-        </div>
-      </div>
-
-      <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
-
-      <div className="flex flex-col gap-4">
-        <h2 className="font-semibold text-xl text-slate-800 dark:text-slate-200">
-          Making changes
-        </h2>
-        <p className="text-slate-600 dark:text-slate-400 text-sm">
-          Edit{" "}
-          <code className="text-sm font-semibold font-mono bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600">
-            convex/myFunctions.ts
-          </code>{" "}
-          to change the backend.
-        </p>
-        <p className="text-slate-600 dark:text-slate-400 text-sm">
-          Edit{" "}
-          <code className="text-sm font-semibold font-mono bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600">
-            app/page.tsx
-          </code>{" "}
-          to change the frontend.
-        </p>
-        <p className="text-slate-600 dark:text-slate-400 text-sm">
-          See the{" "}
-          <Link
-            href="/server"
-            className="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 font-medium underline decoration-2 underline-offset-2 transition-colors"
-          >
-            /server route
-          </Link>{" "}
-          for an example of loading data in a server component
-        </p>
-      </div>
-
-      <div className="h-px bg-slate-200 dark:bg-slate-700"></div>
-
-      <div className="flex flex-col gap-4">
-        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">
-          Useful resources
-        </h2>
-        <div className="flex gap-4">
-          <div className="flex flex-col gap-4 w-1/2">
-            <ResourceCard
-              title="Convex docs"
-              description="Read comprehensive documentation for all Convex features."
-              href="https://docs.convex.dev/home"
-            />
-            <ResourceCard
-              title="Stack articles"
-              description="Learn about best practices, use cases, and more from a growing
-            collection of articles, videos, and walkthroughs."
-              href="https://stack.convex.dev"
-            />
-          </div>
-          <div className="flex flex-col gap-4 w-1/2">
-            <ResourceCard
-              title="Templates"
-              description="Browse our collection of templates to get started quickly."
-              href="https://www.convex.dev/templates"
-            />
-            <ResourceCard
-              title="Discord"
-              description="Join our developer community to ask questions, trade tips & tricks,
-            and show off your projects."
-              href="https://www.convex.dev/community"
-            />
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-black text-white">
+      <CalendarView userId={userId} />
     </div>
   );
 }
 
-function ResourceCard({
-  title,
-  description,
-  href,
-}: {
-  title: string;
-  description: string;
-  href: string;
-}) {
+function CalendarView({ userId }: { userId: Id<"users"> }) {
+  const router = useRouter();
+  const sessions = useQuery(api.myFunctions.getSessions, { userId }) ?? [];
+  const createSession = useMutation(api.myFunctions.createSession);
+  const [taskTitle, setTaskTitle] = useState("");
+
+  const activityData = useMemo(() => {
+    const data: Record<string, number> = {};
+    const now = Date.now();
+    const oneYearAgo = now - 365 * 24 * 60 * 60 * 1000;
+
+    sessions.forEach((session) => {
+      if (session.startTime < oneYearAgo) return;
+      const date = new Date(session.startTime);
+      // Use ISO date string for consistent key
+      const dateKey = date.toISOString().split("T")[0];
+      data[dateKey] = (data[dateKey] || 0) + 1;
+    });
+
+    return data;
+  }, [sessions]);
+
+  const handleStartSession = async () => {
+    const sessionId = await createSession({ 
+      userId, 
+      taskTitle: taskTitle.trim() || undefined 
+    });
+    setTaskTitle(""); // Clear input after starting session
+    router.push(`/session/breathe?sessionId=${sessionId}`);
+  };
+
+  const weeks = useMemo(() => {
+    const weeks: Date[][] = [];
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - 365); // Go back 1 year
+
+    // Find the Monday of the week containing startDate
+    const dayOfWeek = startDate.getDay();
+    const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const monday = new Date(startDate.setDate(diff));
+
+    let currentDate = new Date(monday);
+    const endDate = new Date(today);
+
+    while (currentDate <= endDate) {
+      const week: Date[] = [];
+      for (let i = 0; i < 7; i++) {
+        week.push(new Date(currentDate));
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      weeks.push(week);
+    }
+
+    return weeks;
+  }, []);
+
+  const getActivityLevel = (date: Date): number => {
+    const dateKey = date.toISOString().split("T")[0];
+    const count = activityData[dateKey] || 0;
+    if (count === 0) return 0;
+    if (count === 1) return 1;
+    if (count <= 3) return 2;
+    return 3;
+  };
+
+  const getActivityColor = (level: number): string => {
+    switch (level) {
+      case 0:
+        return "bg-slate-800";
+      case 1:
+        return "bg-green-500";
+      case 2:
+        return "bg-green-400";
+      case 3:
+        return "bg-green-300";
+      default:
+        return "bg-slate-800";
+    }
+  };
+
+  const monthLabels = useMemo(() => {
+    const labels: Array<{ month: string; weekIndex: number }> = [];
+    const seenMonths = new Map<string, number>();
+    
+    weeks.forEach((week, weekIndex) => {
+      // Check the first day of the week (Monday)
+      const firstDay = week[0];
+      const monthKey = firstDay.toLocaleDateString("en-US", { month: "short" });
+      
+      // Only add if this is the first week of this month we've seen
+      if (!seenMonths.has(monthKey)) {
+        seenMonths.set(monthKey, weekIndex);
+        labels.push({ month: monthKey, weekIndex });
+      }
+    });
+    
+    return labels;
+  }, [weeks]);
+
   return (
-    <a
-      href={href}
-      className="flex flex-col gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 p-5 rounded-xl h-36 overflow-auto border border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.02] group cursor-pointer"
-      target="_blank"
-    >
-      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-slate-100 transition-colors">
-        {title} →
-      </h3>
-      <p className="text-xs text-slate-600 dark:text-slate-400">
-        {description}
-      </p>
-    </a>
+    <div className="p-8 max-w-6xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Pomodoro Journal</h1>
+        <p className="text-slate-400">Track your focus sessions</p>
+      </div>
+
+      <div className="mb-8 space-y-4">
+        <div className="flex gap-4 items-end max-w-md">
+          <div className="flex-1">
+            <label htmlFor="task-title" className="text-sm text-muted-foreground mb-2 block">
+              What will you focus on?
+            </label>
+            <Input
+              id="task-title"
+              type="text"
+              placeholder="Enter your focus for this session..."
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && taskTitle.trim()) {
+                  handleStartSession();
+                }
+              }}
+              className="bg-background border-border text-foreground"
+            />
+          </div>
+          <Button 
+            onClick={handleStartSession} 
+            size="lg"
+            disabled={!taskTitle.trim()}
+          >
+            Start Session
+          </Button>
+        </div>
+      </div>
+
+      <Card className="mb-8">
+        <CardContent className="p-6">
+        <div className="flex gap-1 mb-4">
+          <div className="w-8"></div>
+          {weeks.map((week, weekIdx) => {
+            const monthLabel = monthLabels.find((m) => m.weekIndex === weekIdx);
+            return (
+              <div key={weekIdx} className="w-3 text-center relative">
+                {monthLabel && (
+                  <div className="text-xs text-slate-400 absolute left-0 whitespace-nowrap">
+                    {monthLabel.month}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex gap-1">
+          <div className="flex flex-col gap-1 mr-2">
+            <div className="text-xs text-slate-400 h-3"></div>
+            <div className="text-xs text-slate-400 h-3">Mon</div>
+            <div className="text-xs text-slate-400 h-3"></div>
+            <div className="text-xs text-slate-400 h-3">Wed</div>
+            <div className="text-xs text-slate-400 h-3"></div>
+            <div className="text-xs text-slate-400 h-3">Fri</div>
+            <div className="text-xs text-slate-400 h-3"></div>
+          </div>
+          <div className="flex-1 flex gap-1">
+            {weeks.map((week, weekIdx) => (
+              <div key={weekIdx} className="flex flex-col gap-1">
+                {week.map((date, dayIdx) => {
+                  const level = getActivityLevel(date);
+                  const isToday =
+                    date.toDateString() === new Date().toDateString();
+                  return (
+                    <div
+                      key={`${weekIdx}-${dayIdx}`}
+                      className={`w-3 h-3 rounded ${getActivityColor(
+                        level
+                      )} ${isToday ? "ring-2 ring-white" : ""}`}
+                      title={date.toLocaleDateString()}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+        </CardContent>
+      </Card>
+
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-4">Recent Sessions</h2>
+        <div className="space-y-4">
+          {sessions.slice(0, 10).map((session) => {
+            const startDate = new Date(session.startTime);
+            const duration = session.duration
+              ? Math.round(session.duration / 60000)
+              : null;
+            return (
+              <Card key={session._id} className="hover:bg-accent transition-colors">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-base">
+                        {session.taskTitle || "Untitled Session"}
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        {startDate.toLocaleDateString()} at{" "}
+                        {startDate.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </CardDescription>
+                      {duration !== null && duration > 0 && (
+                        <CardDescription className="mt-1">
+                          Duration: {duration} minutes
+                        </CardDescription>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
